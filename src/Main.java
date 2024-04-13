@@ -3,7 +3,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class Main {
-    public static Map<Integer, Long> sizeToFreq = new HashMap<>();
+    public static Map<Integer, Integer> sizeToFreq = new HashMap<>();
+    public static List<Integer> listOfKeys = new ArrayList<>();
+    public static int maxFreq = 0;
 
     public static void main(String[] args) {
         List<String> listOfRandomStrings = new ArrayList<>();
@@ -21,14 +23,30 @@ public class Main {
 
         new Thread(() -> {
             synchronized (listOfRandomStrings) {
-                sizeToFreq = listForCountR.stream()
-                        .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
-                Map<Integer, Long> sortedMap = sortMapByValueDescending(sizeToFreq);
-                List<Integer> listOfKeys = new ArrayList<>(sortedMap.keySet());
-                System.out.println("Самое частое количество повторений " + listOfKeys.get(0) + " (встретилось " + sortedMap.get(listOfKeys.get(0)) + " раз)");
-                System.out.println("Другие размеры:");
-                for (int i = 1; i < listOfKeys.size(); i++) {
-                    System.out.println("- " + listOfKeys.get(i) + " (" + sortedMap.get(listOfKeys.get(i)) + " раз)");
+                for (Integer element : listForCountR) {
+                        sizeToFreq.put(element, sizeToFreq.getOrDefault(element, 0) + 1);
+                        listOfRandomStrings.notify();
+                    }
+                listOfKeys.addAll(sizeToFreq.keySet());
+                for (Integer key : listOfKeys) {
+                    System.out.println("- " + key + " (" + sizeToFreq.get(key) + " раз)");
+                }
+            }
+        }).start();
+
+        new Thread(() -> {
+            while (!Thread.interrupted()) {
+                synchronized (listOfRandomStrings) {
+                try {
+                    listOfRandomStrings.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                for (int i = 0; i < sizeToFreq.size(); i++) {
+                        maxFreq = maxUsingIteration(sizeToFreq);
+                        System.out.println("Максимальная частота - " + maxFreq + " (" + sizeToFreq.get(maxFreq) + " раз)");
+                    }
+                Thread.interrupted();
                 }
             }
         }).start();
@@ -43,10 +61,14 @@ public class Main {
         return route.toString();
     }
 
-    public static <K, V extends Comparable<? super V>> Map<K, V> sortMapByValueDescending(Map<K, V> map) {
-        return map.entrySet()
-                .stream()
-                .sorted(Map.Entry.<K, V>comparingByValue().reversed())
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
+    public static <K, V extends Comparable<V>> V maxUsingIteration(Map<K, V> map) {
+        Map.Entry<K, V> maxEntry = null;
+        for (Map.Entry<K, V> entry : map.entrySet()) {
+            if (maxEntry == null || entry.getValue()
+                    .compareTo(maxEntry.getValue()) > 0) {
+                maxEntry = entry;
+            }
+        }
+        return maxEntry.getValue();
     }
 }
