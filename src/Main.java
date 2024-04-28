@@ -1,31 +1,45 @@
 import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public class Main {
-    public static Map<Integer, Long> sizeToFreq = new HashMap<>();
+    public static final Map<Integer, Integer> sizeToFreq = new HashMap<>();
 
-    public static void main(String[] args) {
-        List<Integer> listForCountR = new ArrayList<>();
+    public static void main(String[] args) throws InterruptedException {
 
         for (int i = 0; i < 1000; i++) {
-            new Thread(() -> {
-                synchronized (listForCountR) {
-                    String randomString = generateRoute("RLRFR", 100);
-                    int count = randomString.length() - randomString.replace(String.valueOf('R'), "").length();
-                    listForCountR.add(count);
-                    sizeToFreq = listForCountR.stream()
-                            .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
-                }
-            }).start();
-        }
 
-        Map<Integer, Long> sortedMap = sortMapByValueDescending(sizeToFreq);
-        List<Integer> listOfKeys = new ArrayList<>(sortedMap.keySet());
-        System.out.println("Самое частое количество повторений " + listOfKeys.get(0) + " (встретилось " + sortedMap.get(listOfKeys.get(0)) + " раз)");
-        System.out.println("Другие размеры:");
-        for (int i = 1; i < listOfKeys.size(); i++) {
-            System.out.println("- " + listOfKeys.get(i) + " (" + sortedMap.get(listOfKeys.get(i)) + " раз)");
+            Thread thread1 = new Thread(() -> {
+                String randomString = generateRoute("RLRFR", 100);
+                int count = randomString.length() - randomString.replace(String.valueOf('R'), "").length();
+                synchronized (sizeToFreq) {
+                    sizeToFreq.put(count, sizeToFreq.getOrDefault(count, 0) + 1);
+                    sizeToFreq.notify();
+                }
+            });
+
+            Thread thread2 = new Thread(() -> {
+                while (!Thread.interrupted()) {
+                    try {
+                        sizeToFreq.wait();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                synchronized (sizeToFreq) {
+                    Map.Entry<Integer, Integer> maxValue = sizeToFreq
+                            .entrySet()
+                            .stream()
+                            .max(Map.Entry.comparingByValue())
+                            .get();
+
+                    System.out.println("Самое частое количество повторений - " + maxValue.getKey() + " (" + maxValue.getValue() + " раз)");
+
+                }
+            });
+
+            thread1.start();
+            thread1.join();
+            thread2.start();
+            thread2.interrupt();
         }
     }
 
@@ -36,12 +50,5 @@ public class Main {
             route.append(letters.charAt(random.nextInt(letters.length())));
         }
         return route.toString();
-    }
-
-    public static <K, V extends Comparable<? super V>> Map<K, V> sortMapByValueDescending(Map<K, V> map) {
-        return map.entrySet()
-                .stream()
-                .sorted(Map.Entry.<K, V>comparingByValue().reversed())
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
     }
 }
