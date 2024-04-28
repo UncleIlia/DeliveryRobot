@@ -10,9 +10,9 @@ public class Main {
 
         for (int i = 0; i < 1000; i++) {
             new Thread(() -> {
+                String randomString = generateRoute("RLRFR", 100);
+                int count = randomString.length() - randomString.replace(String.valueOf('R'), "").length();
                 synchronized (listForCountR) {
-                    String randomString = generateRoute("RLRFR", 100);
-                    int count = randomString.length() - randomString.replace(String.valueOf('R'), "").length();
                     listForCountR.add(count);
                     sizeToFreq = listForCountR.stream()
                             .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
